@@ -1,31 +1,63 @@
-'use client';
+"use client";
 
-import { checkSession, getMe } from '@/lib/api/clientApi';
-import { useAuthStore } from '@/lib/store/authStore';
-import { useEffect } from 'react';
+import { useEffect, useState, ReactNode } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useAuthStore } from "@/lib/store/authStore";
+import { checkSession, getMe } from "@/lib/api/clientApi";
 
-interface Props {
-  children: React.ReactNode;
-}
+export default function AuthProvider({ children }: { children: ReactNode }) {
+  const [isLoading, setIsLoading] = useState(true);
+  const setUser = useAuthStore((state) => state.setUser);
+  const clearAuth = useAuthStore((state) => state.clearAuth);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
 
-export default function AuthProvider({ children }: Props) {
-  const { setUser, clearIsAuthenticated } = useAuthStore();
+  const pathname = usePathname();
+  const router = useRouter();
 
   useEffect(() => {
-    const fetchUser = async () => {
-      const isAuthenticated = await checkSession();
+    const isPrivateRoute =
+      pathname.startsWith("/profile") || pathname.startsWith("/notes");
 
+    const initAuth = async () => {
       if (isAuthenticated) {
-        const user = await getMe();
+        setIsLoading(false);
+        return;
+      }
 
-        if (user) setUser(user);
-      } else {
-        clearIsAuthenticated();
+      try {
+        const session = await checkSession();
+        const user = await getMe();
+        if (session && user) {
+          setUser(user);
+        } else {
+          clearAuth();
+          if (isPrivateRoute) router.push("/sign-in");
+        }
+      } catch {
+        clearAuth();
+        if (isPrivateRoute) router.push("/sign-in");
+      } finally {
+        setIsLoading(false);
       }
     };
 
-    fetchUser();
-  }, [setUser, clearIsAuthenticated]);
+    initAuth();
+  }, [setUser, clearAuth, router, pathname, isAuthenticated]);
 
-  return children;
+  if (isLoading) {
+    return (
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          height: "100vh",
+        }}
+      >
+        <p>Loading session...</p>
+      </div>
+    );
+  }
+
+  return <>{children}</>;
 }

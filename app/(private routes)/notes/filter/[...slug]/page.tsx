@@ -1,63 +1,64 @@
 import {
-  QueryClient,
   dehydrate,
   HydrationBoundary,
-} from '@tanstack/react-query';
-import { fetchNotes } from '@/lib/api/serverApi';
-import NotesClient from './Notes.client';
-import { Metadata } from 'next';
+  QueryClient,
+} from "@tanstack/react-query";
+import { fetchNotes } from "@/lib/api/serverApi";
+import css from "./NotesPage.module.css";
+import NotesClient from "./Notes.client";
+import { Metadata } from "next";
 
-interface Props {
+export async function generateMetadata({
+  params,
+}: {
   params: Promise<{ slug: string[] }>;
-}
-
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
+}): Promise<Metadata> {
   const { slug } = await params;
+  const activeFilter = slug?.[0] || "All";
 
-  const generateCategory = (): string => {
-    if (slug[0] === 'all') return 'all';
+  const title = `Notes Filter: ${activeFilter} | NoteHub`;
+  const description = `Viewing all notes with the tag: ${activeFilter}`;
 
-    return slug[0];
-  };
   return {
-    title: 'NoteHub Category',
-    description: `Viewing notes filtered by ${generateCategory()}`,
+    title,
+    description,
     openGraph: {
-      title: 'NoteHub Category',
-      description: `Viewing notes filtered by ${generateCategory()}`,
-      url: `https://08-zustand-five-liart.vercel.app/notes/filter/${generateCategory()}`,
+      title,
+      description,
+      url: `https://08-zustand-swart-two.vercel.app/notes/filter/${activeFilter}`,
       images: [
         {
-          url: 'https://ac.goit.global/fullstack/react/notehub-og-meta.jpg',
+          url: "https://ac.goit.global/fullstack/react/notehub-og-meta.jpg",
           width: 1200,
           height: 630,
-          alt: 'NoteHub',
         },
       ],
+      type: "website",
     },
   };
 }
 
-export default async function NotesPage({ params }: Props) {
-  const queryClient = new QueryClient();
-  const {
-    slug: [tag],
-  } = await params;
+export default async function MainNotesPage({
+  params,
+}: {
+  params: Promise<{ slug: string[] }>;
+}) {
+  const { slug } = await params;
+  const slugValue = slug?.[0];
 
+  const activeTag = slugValue === "all" || !slugValue ? undefined : slugValue;
+
+  const queryClient = new QueryClient();
   await queryClient.prefetchQuery({
-    queryKey: ['notes', 1, '', tag],
-    queryFn: () =>
-      fetchNotes({
-        page: 1,
-        perPage: 12,
-        search: '',
-        tag: tag === 'all' ? undefined : tag,
-      }),
+    queryKey: ["notes", 1, "", activeTag],
+    queryFn: () => fetchNotes(1, "", activeTag),
   });
 
   return (
     <HydrationBoundary state={dehydrate(queryClient)}>
-      <NotesClient tag={tag} />
+      <div className={css.app}>
+        <NotesClient activeTag={activeTag} />
+      </div>
     </HydrationBoundary>
   );
 }

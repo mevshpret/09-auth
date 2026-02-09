@@ -1,25 +1,25 @@
-import type { ChangeEvent } from "react";
 import css from "./SearchBox.module.css";
+import { useDebouncedCallback } from "use-debounce";
 
 interface SearchBoxProps {
   query: string;
-  onChange: (query: string) => void;
+  setState: (query: string, page: number) => void;
 }
 
-export default function SearchBox({ query, onChange }: SearchBoxProps) {
-  const handleOnChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-
-    onChange(value);
-  };
-
+export default function SearchBox({ query, setState }: SearchBoxProps) {
+  const handleChange = useDebouncedCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      setState(event.target.value, 1);
+    },
+    500
+  );
   return (
     <input
       className={css.input}
       type="text"
+      defaultValue={query}
       placeholder="Search notes"
-      value={query}
-      onChange={handleOnChange}
+      onChange={handleChange}
     />
   );
 }

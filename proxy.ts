@@ -1,88 +1,69 @@
-import { cookies } from 'next/headers';
-import { NextRequest, NextResponse } from 'next/server';
-import { checkSession } from './lib/api/serverApi';
-import { parse } from 'cookie';
+import { NextRequest, NextResponse } from "next/server";
+import { cookies } from "next/headers";
+import { checkSession } from "./lib/api/serverApi";
 
-const privateRoutes = ['/profile', '/notes'];
-const publicRoutes = ['/sign-in', '/sign-up'];
+const PRIVATE_ROUTES = ["/profile", "/notes"];
+const AUTH_ROUTES = ["/sign-in", "/sign-up"];
 
 export async function proxy(request: NextRequest) {
-  console.log('MIDDLEWARE RUN', request.nextUrl.pathname);
+  const { nextUrl } = request;
 
   const cookieStore = await cookies();
-  const accessToken = cookieStore.get('accessToken')?.value;
-  const refreshToken = cookieStore.get('refreshToken')?.value;
+  const accessToken = cookieStore.get("accessToken")?.value;
+  const refreshToken = cookieStore.get("refreshToken")?.value;
 
-  const { pathname } = request.nextUrl;
+  let isAuthenticated = !!accessToken;
+  let justRefreshed = false;
+  let newCookies: string[] = [];
 
-  const isPrivateRoute = privateRoutes.some(route =>
-    pathname.startsWith(route)
-  );
+  if (!isAuthenticated && refreshToken) {
+    try {
+      const response = await checkSession(`refreshToken=${refreshToken}`);
 
-  const isPublicRoute = publicRoutes.some(route => pathname.startsWith(route));
-
-  if (!accessToken) {
-    if (refreshToken) {
-      const data = await checkSession();
-      const setCookie = data.headers['set-cookie'];
-
-      if (setCookie) {
-        const cookieArray = Array.isArray(setCookie) ? setCookie : [setCookie];
-
-        for (const cookieStr of cookieArray) {
-          const parsed = parse(cookieStr);
-          const options = {
-            expires: parsed.Expires ? new Date(parsed.Expires) : undefined,
-            path: parsed.Path,
-            maxAge: Number(parsed['Max-Age']),
-          };
-
-          if (parsed.accessToken)
-            cookieStore.set('accessToken', parsed.accessToken, options);
-          if (parsed.refreshToken)
-            cookieStore.set('refreshToken', parsed.refreshToken, options);
-        }
-
-        if (isPublicRoute) {
-          return NextResponse.redirect(new URL('/profile', request.url), {
-            headers: { Cookie: cookieStore.toString() },
-          });
-        }
-
-        if (isPrivateRoute) {
-          return NextResponse.next({
-            headers: { Cookie: cookieStore.toString() },
-          });
+      if (response.status === 200) {
+        isAuthenticated = true;
+        justRefreshed = true;
+        const setCookieHeader = response.headers["set-cookie"];
+        if (setCookieHeader) {
+          newCookies = Array.isArray(setCookieHeader)
+            ? setCookieHeader
+            : [setCookieHeader];
         }
       }
-    }
-
-    if (isPrivateRoute) {
-      return NextResponse.redirect(new URL('/sign-in', request.url));
-    }
-
-    if (isPublicRoute) {
-      return NextResponse.next();
+    } catch (error) {
+      console.error("Session refresh failed in proxy:", error);
     }
   }
 
-  if (accessToken) {
-    if (isPublicRoute) {
-      return NextResponse.redirect(new URL('/profile', request.url));
-    }
+  const isPrivateRoute = PRIVATE_ROUTES.some((r) =>
+    nextUrl.pathname.startsWith(r),
+  );
+  const isAuthRoute = AUTH_ROUTES.some((a) =>
+    nextUrl.pathname.startsWith(a),
+  );
 
-    if (isPrivateRoute) {
-      return NextResponse.next();
-    }
+  if (justRefreshed) {
+    const targetUrl = isAuthRoute ? new URL("/", request.url) : request.url;
+    const redirectResponse = NextResponse.redirect(targetUrl);
+
+    newCookies.forEach((cookie) => {
+      redirectResponse.headers.append("set-cookie", cookie);
+    });
+
+    return redirectResponse;
   }
-  console.log('[proxy]', {
-    pathname,
-    accessToken: !!accessToken,
-    isPublicRoute,
-  });
+
+  if (isPrivateRoute && !isAuthenticated) {
+    return NextResponse.redirect(new URL("/sign-in", request.url));
+  }
+
+  if (isAuthRoute && isAuthenticated) {
+    return NextResponse.redirect(new URL("/", request.url));
+  }
+
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ['/profile/:path*', '/notes/:path*', '/sign-in', '/sign-up'],
+  matcher: ["/profile/:path*", "/notes/:path*", "/sign-in", "/sign-up"],
 };

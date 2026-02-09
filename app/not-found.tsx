@@ -1,21 +1,14 @@
-import { Metadata } from 'next';
-import css from './page.module.css';
+import css from "./page.module.css";
+import { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: 'Page not found | NoteHub',
-  description: 'The page you are looking for does not exist',
+  title: "404 | NoteHub",
+  description: "The site is not found",
   openGraph: {
-    title: 'Page not found | NoteHub',
-    description: 'The page you are looking for does not exist',
-    url: 'https://08-zustand-five-liart.vercel.app/404',
-    images: [
-      {
-        url: 'https://ac.goit.global/fullstack/react/notehub-og-meta.jpg',
-        width: 1200,
-        height: 630,
-        alt: 'NoteHub',
-      },
-    ],
+    title: "404 | NoteHub",
+    description: "The site is not found",
+    url: `https://notehub.com/not-found`,
+    images: ["https://ac.goit.global/fullstack/react/notehub-og-meta.jpg"],
   },
 };
 

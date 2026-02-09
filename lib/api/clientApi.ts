@@ -1,108 +1,84 @@
-import { User } from '@/types/user';
-import { api } from './api';
-import type { Note } from '@/types/note';
+import { api } from "./api";
+import type { Note, NoteFormValues } from "@/types/note";
+import type { User } from "@/types/user";
 
-export interface FetchNotesParams {
-  page: number;
-  perPage: number;
-  search?: string;
-  tag?: string;
-}
-
-export interface CreateNoteParams {
-  title: string;
-  content: string;
-  tag: string;
-}
-
-export interface FetchNotesResponse {
+export interface NoteRes {
   notes: Note[];
   totalPages: number;
 }
 
-export interface RegisterUser {
-  password: string;
+export type RegisterRequest = {
   email: string;
-}
+  password: string;
+};
 
-export interface SessionCheck {
+export type LoginRequest = {
+  email: string;
+  password: string;
+};
+
+export type SessionRequest = {
   success: boolean;
-}
+};
 
-export interface Logout {
-  status: number;
-}
-
-export interface UpdateUser {
+export type UpdateMeRequest = {
   username: string;
+};
+
+
+
+export async function fetchNotes(
+  currentPage: number,
+  query?: string,
+  tag?: string
+): Promise<NoteRes> {
+  const res = await api.get<NoteRes>("/notes", {
+    params: { page: currentPage, perPage: 12, search: query, tag: tag },
+  });
+  return res.data;
 }
 
-export const fetchNotes = async (
-  params: FetchNotesParams
-): Promise<FetchNotesResponse> => {
-  const { data } = await api.get<FetchNotesResponse>('/notes', {
-    params,
-  });
+export async function fetchNoteById(id: string): Promise<Note> {
+  const res = await api.get<Note>(`/notes/${id}`);
+  return res.data;
+}
 
-  return data;
-};
+export async function createNote(values: NoteFormValues): Promise<Note> {
+  const res = await api.post<Note>("/notes", values);
+  return res.data;
+}
 
-export const createNote = async (newNote: CreateNoteParams): Promise<Note> => {
-  const { data } = await api.post<Note>('/notes', newNote);
+export async function deleteNote(id: string): Promise<Note> {
+  const res = await api.delete<Note>(`/notes/${id}`);
+  return res.data;
+}
 
-  return data;
-};
 
-export const deleteNote = async (id: string): Promise<Note> => {
-  const { data } = await api.delete<Note>(`/notes/${id}`);
+export async function register(data: RegisterRequest): Promise<User> {
+  const res = await api.post<User>("/auth/register", data);
+  return res.data;
+}
 
-  return data;
-};
+export async function login(data: LoginRequest): Promise<User> {
+  const res = await api.post<User>("/auth/login", data);
+  return res.data;
+}
 
-export const fetchNoteById = async (id: string): Promise<Note> => {
-  const { data } = await api.get<Note>(`/notes/${id}`);
+export async function logout(): Promise<void> {
+  await api.post("/auth/logout");
+}
 
-  return data;
-};
+export async function checkSession(): Promise<boolean> {
+  const res = await api.get<SessionRequest>("/auth/session");
+  return res.data.success;
+}
 
-export const register = async ({
-  email,
-  password,
-}: RegisterUser): Promise<User> => {
-  const { data } = await api.post<User>('/auth/register', { email, password });
+export async function getMe(): Promise<User> {
+  const res = await api.get<User>("/users/me");
+  return res.data;
+}
 
-  return data;
-};
-
-export const login = async ({
-  email,
-  password,
-}: RegisterUser): Promise<User> => {
-  const { data } = await api.post<User>('/auth/login', { email, password });
-
-  return data;
-};
-
-export const checkSession = async (): Promise<boolean> => {
-  const { data } = await api.get<SessionCheck>('/auth/session');
-
-  return data.success;
-};
-
-export const getMe = async (): Promise<User> => {
-  const { data } = await api.get<User>('/users/me');
-
-  return data;
-};
-
-export const logout = async (): Promise<Logout> => {
-  const { data } = await api.post<Logout>('/auth/logout');
-
-  return data;
-};
-
-export const updateMe = async ({ username }: UpdateUser): Promise<User> => {
-  const { data } = await api.patch<User>('/users/me', { username });
-
-  return data;
-};
+export async function updateMe(values: UpdateMeRequest): Promise<User> {
+  const res = await api.patch<User>("/users/me", values);
+  return res.data;
+}

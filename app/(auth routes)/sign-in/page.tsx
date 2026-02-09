@@ -1,83 +1,75 @@
-'use client';
+"use client";
 
-import { login } from '@/lib/api/clientApi';
-import css from './SignInPage.module.css';
-import toast, { Toaster } from 'react-hot-toast';
-import * as Yup from 'yup';
-import { useRouter } from 'next/navigation';
-import { useAuthStore } from '@/lib/store/authStore';
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { login } from "@/lib/api/clientApi";
+import { useAuthStore } from "@/lib/store/authStore";
+import css from "./SignInPage.module.css";
+import axios from "axios";
+
+interface ApiErrorResponse {
+  message: string;
+}
 
 export default function SignInPage() {
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
-  const { setUser } = useAuthStore();
+  const setUser = useAuthStore((state) => state.setUser);
 
-  const validationSchema = Yup.object({
-    email: Yup.string()
-      .email('Email must look like name@example.com')
-      .required('Enter your email')
-      .trim(),
-    password: Yup.string()
-      .min(6, 'The password must be at least 6 characters long.')
-      .required('Password is required')
-      .trim(),
-  });
-
-  const handleSubmit = async (formData: FormData) => {
-    const password = formData.get('password');
-    const email = formData.get('email');
-
-    if (typeof password !== 'string' || typeof email !== 'string') {
-      return;
-    }
-
-    const loginUser = {
-      password: password.trim(),
-      email: email.trim(),
-    };
+  const handleAction = async (formData: FormData) => {
+    const email = formData.get("email") as string;
+    const password = formData.get("password") as string;
 
     try {
-      await validationSchema.validate(loginUser, { abortEarly: false });
-      const userData = await login(loginUser);
-
-      setUser(userData);
-
-      router.push('/profile');
-    } catch (error) {
-      if (error instanceof Yup.ValidationError) {
-        toast.error(error.errors[0], { duration: 7000 });
+      setError(null);
+      const user = await login({ email, password });
+      setUser(user);
+      router.push("/profile");
+    } catch (err: unknown) {
+      if (axios.isAxiosError<ApiErrorResponse>(err)) {
+        const errorMessage =
+          err.response?.data?.message || "Something went wrong";
+        setError(errorMessage);
       } else {
+        setError("An unexpected error occurred");
       }
     }
   };
 
   return (
     <main className={css.mainContent}>
-      <Toaster position='top-right' />
-      <form className={css.form} action={handleSubmit}>
+      <form action={handleAction} className={css.form}>
         <h1 className={css.formTitle}>Sign in</h1>
 
         <div className={css.formGroup}>
-          <label htmlFor='email'>Email</label>
-          <input id='email' type='text' name='email' className={css.input} />
+          <label htmlFor="email">Email</label>
+          <input
+            id="email"
+            type="email"
+            name="email"
+            className={css.input}
+            required
+          />
         </div>
 
         <div className={css.formGroup}>
-          <label htmlFor='password'>Password</label>
+          <label htmlFor="password">Password</label>
           <input
-            id='password'
-            type='password'
-            name='password'
+            id="password"
+            type="password"
+            name="password"
             className={css.input}
+            required
           />
         </div>
 
         <div className={css.actions}>
-          <button type='submit' className={css.submitButton}>
+          <button type="submit" className={css.submitButton}>
             Log in
           </button>
         </div>
 
-        {/* <p className={css.error}>Error</p> */}
+        {error && <p className={css.error}>{error}</p>}
       </form>
     </main>
   );

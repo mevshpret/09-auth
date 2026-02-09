@@ -1,34 +1,47 @@
-'use client';
+"use client";
 
-import { useAuthStore } from '@/lib/store/authStore';
-import css from './EditProfilePage.module.css';
-import Image from 'next/image';
-import { useRouter } from 'next/navigation';
-import { updateMe } from '@/lib/api/clientApi';
+import { useState, useEffect } from "react";
+import Image from "next/image";
+import { useRouter } from "next/navigation";
+import { useAuthStore } from "@/lib/store/authStore";
+import { updateMe } from "@/lib/api/clientApi";
+import css from "./EditProfilePage.module.css";
 
 export default function EditProfilePage() {
-  const { user, setUser } = useAuthStore();
   const router = useRouter();
+  const { user, setUser } = useAuthStore();
 
-  const handleCancel = () => {
-    router.push('/profile');
-  };
+  const [username, setUsername] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSave = async (formData: FormData) => {
-    const userName = formData.get('username');
-    if (typeof userName !== 'string') {
-      return;
+  useEffect(() => {
+    if (user?.username) {
+      setUsername(user.username);
     }
+  }, [user]);
 
-    const updatedUserData = {
-      username: userName.trim(),
-    };
+  if (!user) {
+    return (
+      <main className={css.mainContent}>
+        <p>Loading user data...</p>
+      </main>
+    );
+  }
 
-    const updatedUser = await updateMe(updatedUserData);
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!username.trim()) return;
 
-    setUser(updatedUser);
-
-    router.push('/profile');
+    try {
+      setIsSubmitting(true);
+      const updatedUser = await updateMe({ username });
+      setUser(updatedUser);
+      router.push("/profile");
+    } catch (error) {
+      console.error("Failed to update profile", error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -37,35 +50,44 @@ export default function EditProfilePage() {
         <h1 className={css.formTitle}>Edit Profile</h1>
 
         <Image
-          src={user?.avatar || '/user-avatar.svg'}
-          alt='User Avatar'
+          src={
+            user.avatar ||
+            "https://ac.goit.global/fullstack/react/default-avatar.jpg"
+          }
+          alt="User Avatar"
           width={120}
           height={120}
           className={css.avatar}
+          priority
         />
 
-        <form className={css.profileInfo} action={handleSave}>
+        <form className={css.profileInfo} onSubmit={handleSave}>
           <div className={css.usernameWrapper}>
-            <label htmlFor='username'>Username:</label>
+            <label htmlFor="username">Username:</label>
             <input
-              id='username'
-              type='text'
+              id="username"
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
               className={css.input}
-              defaultValue={user?.username || 'Your name'}
-              name='username'
+              required
             />
           </div>
 
-          <p>Email: {user?.email || 'user_email@example.com'}</p>
+          <p>Email: {user.email}</p>
 
           <div className={css.actions}>
-            <button type='submit' className={css.saveButton}>
-              Save
+            <button
+              type="submit"
+              className={css.saveButton}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? "Saving..." : "Save"}
             </button>
             <button
-              type='button'
+              type="button"
               className={css.cancelButton}
-              onClick={handleCancel}
+              onClick={() => router.push("/profile")}
             >
               Cancel
             </button>

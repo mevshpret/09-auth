@@ -27,9 +27,8 @@ export async function GET() {
         const cookieArray = Array.isArray(setCookie) ? setCookie : [setCookie];
         for (const cookieStr of cookieArray) {
           const parsed = parseSetCookie(cookieStr);
-          if (parsed) {
-            const { name, value, ...options } = parsed;
-            cookieStore.set(name, value, options);
+          if (parsed?.value) {
+            cookieStore.set(parsed);
           }
         }
         return NextResponse.json({ success: true }, { status: 200 });
